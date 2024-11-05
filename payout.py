@@ -75,7 +75,6 @@ class Worker:
                 continue
             req = faucetpayouts.Request(filename=r["filename"], timestamp=totime(r["timestamp"]), username=r["user_name"], userid=r["user_id"], address=r["address"])
             lastr, lastp = self.paid.last_payout(r["user_id"])
-            if lastr: print(lastr.timestamp, now)
             if lastr is not None and lastr.timestamp + REQUEST_FREQUENCY >= now:
                 logging.debug(f"ignoring request to {req.address} for {req.username}; wait longer")
                 bad.append(req)

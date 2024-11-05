@@ -60,7 +60,7 @@ class Requests:
              result.append(s)
         return result
 
-    def complete(self, fname : str) -> None:
+    def complete(self, fname : str) -> bool:
         try:
             src = self._current / fname
             d = json.loads(src.read_text())
@@ -68,8 +68,9 @@ class Requests:
             dest = self._complete / str(dt.year) / ("%02d-%02d" % (dt.month, dt.day)) / fname
             dest.parent.mkdir(parents=True, exist_ok=True)
             src.rename(dest)
+            return True
         except:
-            pass
+            return False
 
 if __name__ == "__main__":
     for r in Requests().read():

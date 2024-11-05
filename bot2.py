@@ -20,6 +20,10 @@ from timestuff import timedeltahuman, totime, utcnow
 
 TOKEN = open("DISCORD-TOKEN").read().strip()
 PATH = '/home/aj/P/bitcoin/faucet-discord/requests'
+TXURL = "https://mempool.space/signet/tx/%s"
+
+def txurl(txid : str) -> str:
+    return TXURL % (txid,)
 
 class MyClient(discord.Client):
     def __init__(self, *, intents: discord.Intents):
@@ -48,27 +52,41 @@ intents = discord.Intents.default()
 client = MyClient(intents=intents)
 requests = faucetrequests.Requests()
 
+async def edit_orig_resp(req : str, **kwargs) -> None:
+    if req not in client.interactions: return
+    orig = await client.interactions[req].original_response()
+    await orig.edit(**kwargs)
+
 @discord.ext.tasks.loop(seconds=30)
-async def check_status():
+async def cleanup():
+    for s in list(client.interactions):
+        if client.interactions[s].is_expired():
+            del client.interactions[s]
+
     s = faucetstatus.Status.read()
     if s is None: return
     recent_cleanup = []
     for txid in s.current_payouts:
         for req in s.current_payouts[txid]:
-            logging.info(f"Successful payout of {req} via {txid}")
-            requests.complete(req)
-            recent_cleanup.append((req, txid))
+            if requests.complete(req):
+                logging.info(f"Successful payout of {req} via {txid}")
+                await edit_orig_resp(req, content=None, embed=discord.Embed(description=f"Request [successful]({txurl(txid)})."))
+                recent_cleanup.append((req, txid))
+                del client.interactions[req]
     for req in s.current_rejects:
-        logging.info(f"Failed payout of {req}")
-        requests.complete(req)
-        recent_cleanup.append((req, None))
+        if requests.complete(req):
+            logging.info(f"Failed payout of {req}")
+            if req in client.interactions:
+                edit_orig_resp(req, content="Request for funds failed")
+            recent_cleanup.append((req, None))
+            del client.interactions[req]
     client.recent.complete_requests(recent_cleanup)
 
 @client.event
 async def on_ready():
     logging.info(f'Logged in as {client.user} (ID: {client.user.id})')
     logging.info('------')
-    check_status.start()
+    cleanup.start()
 
 @client.tree.command()
 @app_commands.describe(
@@ -87,9 +105,10 @@ async def request(interaction: discord.Interaction, address: str):
         )
         assert isinstance(interaction.client, MyClient)
         interaction.client.recent.add_request(req)
-        await interaction.response.send_message(f"Request for funds acknowledged")
+        await interaction.response.send_message(f"Request for funds acknowledged", ephemeral=True)
+        interaction.client.interactions[req.filename] = interaction
     else:
-        await interaction.response.send_message(f"Request for funds ignored")
+        await interaction.response.send_message(f"Request for funds ignored", ephemeral=True)
 
 @client.tree.command()
 async def status(interaction: discord.Interaction):
@@ -98,78 +117,23 @@ async def status(interaction: discord.Interaction):
     await interaction.response.send_message(f'Last check for payment requests {lc} ago, faucet balance {s.faucet_balance}.')
 
 @client.tree.command()
-async def hello(interaction: discord.Interaction):
-    """Says hello!"""
-    await interaction.response.send_message(f'Hi, {interaction.user.mention}')
-
-@client.tree.command()
-@app_commands.describe(
-    first_value='The first value you want to add something to',
-    second_value='The value you want to add to the first value',
-)
-async def add(interaction: discord.Interaction, first_value: int, second_value: int):
-    """Adds two numbers together."""
-    await interaction.response.send_message(f'{first_value} + {second_value} = {first_value + second_value}')
-
-
-# The rename decorator allows us to change the display of the parameter on Discord.
-# In this example, even though we use `text_to_send` in the code, the client will use `text` instead.
-# Note that other decorators will still refer to it as `text_to_send` in the code.
-@client.tree.command()
-@app_commands.rename(text_to_send='text')
-@app_commands.describe(text_to_send='Text to send in the current channel')
-async def send(interaction: discord.Interaction, text_to_send: str):
-    """Sends the text into the current channel."""
-    await interaction.response.send_message(text_to_send)
-
-
-# To make an argument optional, you can either give it a supported default argument
-# or you can mark it as Optional from the typing standard library. This example does both.
-@client.tree.command()
-@app_commands.describe(member='The member you want to get the joined date from; defaults to the user who uses the command')
-async def joined(interaction: discord.Interaction, member: Optional[discord.Member] = None):
-    """Says when a member joined."""
-    # If no member is explicitly provided then we use the command user here
-    member = member or interaction.user
-
-    # The format_dt function formats the date time into a human readable representation in the official client
-    await interaction.response.send_message(f'{member} joined {discord.utils.format_dt(member.joined_at)}')
-
-
-# A Context Menu command is an app command that can be run on a member or on a message by
-# accessing a menu within the client, usually via right clicking.
-# It always takes an interaction as its first parameter and a Member or Message as its second parameter.
-
-# This context menu command only works on members
-@client.tree.context_menu(name='Show Join Date')
-async def show_join_date(interaction: discord.Interaction, member: discord.Member):
-    # The format_dt function formats the date time into a human readable representation in the official client
-    await interaction.response.send_message(f'{member} joined at {discord.utils.format_dt(member.joined_at)}')
-
-
-# This context menu command only works on messages
-@client.tree.context_menu(name='Report to Moderators')
-async def report_message(interaction: discord.Interaction, message: discord.Message):
-    # We're sending this response message with ephemeral=True, so only the command executor can see it
-    await interaction.response.send_message(
-        f'Thanks for reporting this message by {message.author.mention} to our moderators.', ephemeral=True
-    )
-
-    # Handle report by sending it into a log channel
-    log_channel = interaction.guild.get_channel(0)  # replace with your channel id
-
-    embed = discord.Embed(title='Reported Message')
-    if message.content:
-        embed.description = message.content
-
-    embed.set_author(name=message.author.display_name, icon_url=message.author.display_avatar.url)
-    embed.timestamp = message.created_at
-
-    url_view = discord.ui.View()
-    url_view.add_item(discord.ui.Button(label='Go to Message', style=discord.ButtonStyle.url, url=message.jump_url))
-
-    await log_channel.send(embed=embed, view=url_view)
-
+async def history(interaction: discord.Interaction):
+    assert isinstance(interaction.client, MyClient)
+    h = interaction.client.recent.history(interaction.user.id)
+    resp = []
+    for hi in h:
+        if hi.completed is not None:
+            state = f"[paid]({txurl(hi.txid)})" if hi.txid else "failed"
+            t = hi.completed
+        else:
+            state = "pending"
+            t = hi.timestamp
+        resp.append(f" * <t:{int(t.timestamp())}:R> funds to {hi.address} ({state})")
+    if resp:
+        e = discord.Embed(description=f"Your requests:\n\n{'\n'.join(resp)}\n")
+        await interaction.response.send_message(embed=e, ephemeral=True)
+    else:
+        await interaction.response.send_message(content="You have not made any recent requests", ephemeral=True)
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 

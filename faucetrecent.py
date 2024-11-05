@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import datetime
 import json
@@ -36,12 +36,15 @@ class RecentDB:
         self.engine = create_engine(DB, echo=echo)
         SQLModel.metadata.create_all(self.engine)
 
-    def history(self, user_id: int) -> List[RecentReq]:
+    def history(self, user_id: int) -> Sequence[RecentReq]:
+        with Session(self.engine) as session:
+            results = session.exec(select(RecentReq).where(RecentReq.user_id == user_id).order_by(RecentReq.timestamp.desc()))
+            return results.all()
         return []
 
     def latest(self, user_id: int) -> Optional[RecentReq]:
         with Session(self.engine) as session:
-            results = session.exec(select(RecentReq).where(RecentReq.user_id == user_id).where(RecentReq.txid != None).order_by(RecentReq.timestamp.desc))
+            results = session.exec(select(RecentReq).where(RecentReq.user_id == user_id).where(RecentReq.txid != None).order_by(RecentReq.timestamp.desc()))
             return results.first()
 
     def count_pending(self) -> int:

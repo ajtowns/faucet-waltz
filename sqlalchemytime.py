@@ -5,6 +5,7 @@ import datetime
 import sqlalchemy as sa
 
 class TimeStamp(sa.types.TypeDecorator):
+    cache_ok = True
     impl = sa.types.DateTime
 
     def process_bind_param(self, value: datetime.datetime, dialect):
