@@ -20,13 +20,14 @@ from timestuff import utcnow, totime
 CMD=f"bitcoin-cli -rpcwallet= -signet"
 
 MAX_PER_TX=500
-BTC_PER_TX=decimal.Decimal("0.2")
-BTC_PER_OUT=decimal.Decimal("0.05")
+BTC_PER_TX=decimal.Decimal("0.05")
+BTC_PER_OUT=decimal.Decimal("0.025")
 QUANTIZE=decimal.Decimal(10)**-5
 BTC_MIN = decimal.Decimal("0.00001")
 
 REQUEST_FREQUENCY = datetime.timedelta(hours=1)
 BALANCE_FREQUENCY = datetime.timedelta(minutes=30)
+PAYOUT_FREQUENCY = datetime.timedelta(minutes=1)
 
 FILE_STATUS = "/home/aj/P/bitcoin/faucet-discord/payouts/status.json"
 FILE_STATUS_TMP = "/home/aj/P/bitcoin/faucet-discord/payouts/status.json.tmp"
@@ -52,7 +53,7 @@ class Worker:
     def loop(self):
         while True:
             self.dowork()
-            time.sleep(60)
+            time.sleep(PAYOUT_FREQUENCY.seconds)
 
     def dowork(self) -> bool:
         more_work = False
