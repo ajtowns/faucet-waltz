@@ -29,9 +29,6 @@ REQUEST_FREQUENCY = datetime.timedelta(hours=1)
 BALANCE_FREQUENCY = datetime.timedelta(minutes=30)
 PAYOUT_FREQUENCY = datetime.timedelta(minutes=1)
 
-FILE_STATUS = "/home/aj/P/bitcoin/faucet-discord/payouts/status.json"
-FILE_STATUS_TMP = "/home/aj/P/bitcoin/faucet-discord/payouts/status.json.tmp"
-
 class Worker:
     RE_TXID = re.compile(r'^[0-9a-f]{64}$')
 
