@@ -10,7 +10,7 @@ from sqlmodel import Session, SQLModel, Field, Relationship, create_engine, sele
 
 from sqlalchemytime import TimeStamp
 
-DB = "sqlite:////home/aj/P/bitcoin/faucet-discord/payouts/audit.sqlite"
+DB = "sqlite:///./payouts/audit.sqlite"
 
 class Payout(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)

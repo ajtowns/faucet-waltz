@@ -10,8 +10,8 @@ import os
 
 from timestuff import totime, fromtime
 
-FILE_STATUS = "/home/aj/P/bitcoin/faucet-discord/payouts/status.json"
-FILE_STATUS_TMP = "/home/aj/P/bitcoin/faucet-discord/payouts/status.json.tmp"
+FILE_STATUS = "./payouts/status.json"
+FILE_STATUS_TMP = "./payouts/status.json.tmp"
 
 @dataclasses.dataclass
 class Status:

@@ -19,7 +19,7 @@ import faucetstatus
 from timestuff import timedeltahuman, totime, utcnow
 
 TOKEN = open("DISCORD-TOKEN").read().strip()
-PATH = '/home/aj/P/bitcoin/faucet-discord/requests'
+PATH = './requests'
 TXURL = "https://mempool.space/signet/tx/%s"
 
 def txurl(txid : str) -> str:

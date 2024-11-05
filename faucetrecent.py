@@ -11,7 +11,7 @@ from sqlmodel import Session, SQLModel, Field, Relationship, create_engine, sele
 from sqlalchemytime import TimeStamp
 from timestuff import utcnow
 
-DB = "sqlite:////home/aj/P/bitcoin/faucet-discord/requests/recent.sqlite"
+DB = "sqlite:///./requests/recent.sqlite"
 
 
 class RecentReq(SQLModel, table=True):

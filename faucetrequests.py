@@ -13,8 +13,8 @@ import discord
 
 from timestuff import utcnow, fromtime, totime
 
-CURRENT = "/home/aj/P/bitcoin/faucet-discord/requests/current"
-COMPLETE = "/home/aj/P/bitcoin/faucet-discord/requests/complete"
+CURRENT = "./requests/current"
+COMPLETE = "./requests/complete"
 
 class Requests:
     RE_FILE = re.compile(r"^\d+-\d+[.]\d+-([0-9a-f]{64})[.]json")
