@@ -9,6 +9,7 @@ import logging
 from hashlib import sha256
 
 import discord
+import discord.ext.tasks
 from discord import app_commands
 
 import faucetrecent
@@ -41,17 +42,33 @@ class MyClient(discord.Client):
         # This copies the global commands over to your guild.
         #self.tree.copy_global_to(guild=MY_GUILD)
         r = await self.tree.sync()
-        print(f"sync result: {r}")
+        print(f"sync result: {[sr.name for sr in r]}")
 
 intents = discord.Intents.default()
 client = MyClient(intents=intents)
 requests = faucetrequests.Requests()
 
+@discord.ext.tasks.loop(seconds=30)
+async def check_status():
+    s = faucetstatus.Status.read()
+    if s is None: return
+    recent_cleanup = []
+    for txid in s.current_payouts:
+        for req in s.current_payouts[txid]:
+            logging.info(f"Successful payout of {req} via {txid}")
+            requests.complete(req)
+            recent_cleanup.append((req, txid))
+    for req in s.current_rejects:
+        logging.info(f"Failed payout of {req}")
+        requests.complete(req)
+        recent_cleanup.append((req, None))
+    client.recent.complete_requests(recent_cleanup)
+
 @client.event
 async def on_ready():
-    print(f'Logged in as {client.user} (ID: {client.user.id})')
-    print('------')
-
+    logging.info(f'Logged in as {client.user} (ID: {client.user.id})')
+    logging.info('------')
+    check_status.start()
 
 @client.tree.command()
 @app_commands.describe(

@@ -58,7 +58,6 @@ class Worker:
         more_work = False
         now = utcnow()
         current = self.reqs.read()
-        if not current: return False
 
         payouts : Dict[str, List[str]] = {}
         rejects : List[str] = []
@@ -89,8 +88,9 @@ class Worker:
             good.append(req)
             good_addresses.add(req.address)
 
-        self.paid.add_bad_reqs(bad)
-        rejects.extend(b.filename for b in bad)
+        if bad:
+            self.paid.add_bad_reqs(bad)
+            rejects.extend(b.filename for b in bad)
 
         if good:
             payout_txid = self.generate_payout(good)
