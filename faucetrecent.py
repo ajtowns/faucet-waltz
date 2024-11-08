@@ -13,9 +13,8 @@ from timestuff import utcnow
 
 DB = "sqlite:///./requests/recent.sqlite"
 
-
 class RecentReq(SQLModel, table=True):
-    __table_args__ = (sa.Index("idx_userid_completed", "user_id", "completed"),
+    __table_args__ = (sa.Index("idx_userid_completed", "user_id", "timestamp"),
                      )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -42,10 +41,10 @@ class RecentDB:
             return results.all()
         return []
 
-    def latest(self, user_id: int) -> Optional[RecentReq]:
+    def requests_since(self, user_id: int, since: datetime.datetime) -> Sequence[RecentReq]:
         with Session(self.engine) as session:
-            results = session.exec(select(RecentReq).where(RecentReq.user_id == user_id).where(RecentReq.txid != None).order_by(RecentReq.timestamp.desc()))
-            return results.first()
+            results = session.exec(select(RecentReq).where(RecentReq.user_id == user_id).where(RecentReq.timestamp >= since).where((RecentReq.completed == None) | (RecentReq.txid != None)).order_by(RecentReq.timestamp.desc()))
+            return results.all()
 
     def count_pending(self) -> int:
         with Session(self.engine) as session:

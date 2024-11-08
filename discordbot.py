@@ -94,8 +94,11 @@ async def on_ready():
 )
 async def request(interaction: discord.Interaction, address: str):
     """Requests funds from the faucet"""
+    assert isinstance(interaction.client, MyClient)
     logging.info(f"Request for {interaction.user.name} to {address}")
-    if (reqd := requests.create(interaction, address)):
+    s = faucetstatus.Status.read()
+    prevreqs = interaction.client.recent.requests_since(interaction.user.id, utcnow() - s.request_frequency)
+    if not prevreqs and (reqd := requests.create(interaction, address)):
         req = faucetrecent.RecentReq(
             filename=reqd["filename"],
             timestamp=totime(reqd["timestamp"]),
@@ -103,18 +106,21 @@ async def request(interaction: discord.Interaction, address: str):
             user_id=reqd["user_id"],
             address=reqd["address"],
         )
-        assert isinstance(interaction.client, MyClient)
         interaction.client.recent.add_request(req)
         await interaction.response.send_message(f"Request for funds acknowledged", ephemeral=True)
         interaction.client.interactions[req.filename] = interaction
     else:
-        await interaction.response.send_message(f"Request for funds ignored", ephemeral=True)
+        await interaction.response.send_message(f"Request for funds ignored, you need to wait at least {timedeltahuman(s.request_frequency)} between requests.", ephemeral=True)
 
 @client.tree.command()
 async def status(interaction: discord.Interaction):
     s = faucetstatus.Status.read()
     lc = timedeltahuman(utcnow() - s.last_check)
-    await interaction.response.send_message(f'Last check for payment requests {lc} ago, faucet balance {s.faucet_balance}.')
+    msg = f'Last check for payment requests {lc} ago, faucet balance {s.faucet_balance}.'
+    pending = client.recent.count_pending()
+    if pending > 0:
+        msg += f' {pending} requests currently pending.'
+    await interaction.response.send_message(msg)
 
 @client.tree.command()
 async def history(interaction: discord.Interaction):
